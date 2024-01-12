@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" rel="stylesheet">
+<head>
+    <meta charset="UTF-8">
+    <title>Downloader</title>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <button class="nav-link btn btn-primary" data-bs-target="#addFileModal" data-bs-toggle="modal" id="openModalButton"
+                                type="button">Add
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link btn btn-secondary" type="button">Clear</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link btn btn-success" type="button">Stats</button>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-danger" href="/logout">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="modal fade" id="addFileModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Add File</h5>
+                    <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+                </div>
+                <div class="modal-body">
+                    <input class="form-control mb-2" id="fileNameInput" placeholder="Enter file name" type="text">
+                    <input class="form-control" id="destinationInput" placeholder="Enter destination" type="text">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
+                    <button class="btn btn-primary" id="addFileButton" onclick="addFile()" type="button">Add File</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <table class="table">
+        <thead>
+        <tr>
+            <th scope="col">File name</th>
+            <th scope="col">Downloaded</th>
+<!--            <th scope="col">Size</th>-->
+<!--            <th scope="col">Progress</th>-->
+<!--            <th scope="col">Status</th>-->
+            <th scope="col">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="downloadItem : ${downloadList}">
+            <td th:text="${downloadItem.downloadedFilePath}"></td>
+            <td th:text="${downloadItem.isDownloading()}"></td>
+<!--            <td th:text="${downloadItem.size}"></td>-->
+<!--            <td th:text="${downloadItem.progress}"></td>-->
+<!--            <td th:text="${downloadItem.status}"></td>-->
+            <td>
+                <button class="btn btn-primary" th:onclick="'resumeDownload(' + ${downloadItem.id} + ')'"
+                        th:if="${downloadItem.isDownloading() == false}">Resume
+                </button>
+                <button class="btn btn-warning" th:onclick="'pauseDownload(' + ${downloadItem.id} + ')'"
+                        th:if="${downloadItem.isDownloading() == true}">Pause
+                </button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <script th:inline="javascript">
+        function addFile() {
+            var fileName = document.getElementById('fileNameInput').value;
+            var destination = document.getElementById('destinationInput').value;
+
+            // Create an object with the data to send in the request body
+            var requestData = {
+                url: fileName,
+                dest: destination
+            };
+
+            $.ajax({
+                type: 'POST',
+                url: '/downloads/addFile',
+                contentType: 'application/json',
+                data: JSON.stringify(requestData),
+                success: function(response) {
+                    console.log(response);
+                    location.reload()
+                },
+                error: function(xhr, status, error) {
+                    console.error(xhr.responseText);
+                    // Handle error response
+                }
+            });
+
+            // Close the modal after adding the file
+            $('#addFileModal').modal('hide');
+        }
+        function pauseDownload(downloadId) {
+            // Logic to pause download by sending an AJAX request to your endpoint
+            // For example:
+            $.post('/downloads/' + downloadId + '/pause', function(response) {
+                console.log(response);
+                location.reload()
+            });
+        }
+        function resumeDownload(downloadId) {
+            // Logic to resume download by sending an AJAX request to your endpoint
+            // For example:
+            $.post('/downloads/' + downloadId + '/resume', function(response) {
+                console.log(response);
+                location.reload()
+            });
+        }
+    </script>
+
+
+    <script crossorigin="anonymous"
+            integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL"
+            src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+</body>
+</html>
