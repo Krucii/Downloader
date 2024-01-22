@@ -74,32 +74,68 @@ public class DownloadController {
         HttpClient httpClient = HttpClient.newHttpClient();
         long resumeOffset = downloadInfo.getResumeOffset();
 
-        HttpRequest httpRequest = HttpRequest.newBuilder()
-                .uri(URI.create(downloadInfo.getFileUrl()))
-                .header("Range", "bytes=" + resumeOffset + "-") // Set the Range header for resuming
-                .build();
-
         try {
+            HttpRequest httpRequest = HttpRequest.newBuilder()
+                    .uri(URI.create(downloadInfo.getFileUrl()))
+                    .header("Range", "bytes=" + resumeOffset + "-") // Set the Range header for resuming
+                    .build();
+
             HttpResponse<InputStream> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
 
-            try (InputStream inputStream = response.body();
-                 FileOutputStream outputStream = new FileOutputStream(downloadInfo.getDownloadedFilePath(), true)) {
+            int statusCode = response.statusCode();
+            System.out.println("HTTP Status Code: " + statusCode);
 
-                byte[] buffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                    resumeOffset += bytesRead; // Update resumeOffset as data is downloaded
-                    downloadInfo.setResumeOffset(resumeOffset);
-                    if (!downloadInfo.isDownloading()) {
-                        return; // Indicates the download was paused
+            if (statusCode == 200 || statusCode == 206) {
+                // Continue with reading the InputStream
+                try (InputStream inputStream = response.body();
+                     FileOutputStream outputStream = new FileOutputStream(downloadInfo.getDownloadedFilePath(), true)) {
+
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    int bytesBuffered = 0;
+
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        outputStream.write(buffer, 0, bytesRead);
+                        bytesBuffered += bytesRead;
+
+                        if (bytesBuffered > 1024 * 1024) {// Flush after 1MB
+                            bytesBuffered = 0;
+                            outputStream.flush();
+                            downloadInfoService.saveDownloadInfo(downloadInfo);
+                        }
+
+                        resumeOffset += bytesRead; // Update resumeOffset as data is downloaded
+                        downloadInfo.setResumeOffset(resumeOffset);
+                        if (!downloadInfo.isDownloading()) {
+                            return; // Indicates the download was paused
+                        }
                     }
+                    downloadInfoService.saveDownloadInfo(downloadInfo);
+                    // Flush any remaining buffered data
+                    outputStream.flush();
                 }
+            } else if (statusCode == 302) {
+                // Handle redirection (similar to previous code)
+                String newLocation = response.headers().firstValue("Location").orElse(null);
+                if (newLocation != null) {
+                    System.out.println("Redirecting to: " + newLocation);
+                    httpRequest = HttpRequest.newBuilder()
+                            .uri(URI.create(newLocation))
+                            .header("Range", "bytes=" + resumeOffset + "-")
+                            .build();
+                } else {
+                    System.out.println("Redirect location not found in headers.");
+                }
+            } else {
+                // Handle other status codes appropriately
+                System.out.println("Unexpected HTTP Status Code: " + statusCode);
             }
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
     }
+
+
 
     @GetMapping
     @ResponseBody
@@ -109,24 +145,10 @@ public class DownloadController {
     }
 
     @GetMapping("/{id}/progress")
-    public ResponseEntity<String> getDownloadProgress(@PathVariable Long id) {
+    public ResponseEntity<Long> getDownloadProgress(@PathVariable Long id) {
         DownloadInfo downloadInfo = downloadInfoService.getDownloadInfoById(id);
         if (downloadInfo != null) {
-            long totalSize = downloadInfoService.getDownloadTotalSize(downloadInfo);
-            long downloaded = downloadInfo.getDownloadedFilePath().length() - downloadInfo.getResumeOffset();
-
-            double percentage = totalSize > 0 ? ((double) downloaded / (double) totalSize) * 100.0 : 0.0;
-            return ResponseEntity.ok("File " + id + " downloaded: " + percentage + "%");
-        }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Download not found");
-    }
-
-    @GetMapping("/{id}/totalSize")
-    public ResponseEntity<Long> getDownloadTotalSize(@PathVariable Long id) {
-        DownloadInfo downloadInfo = downloadInfoService.getDownloadInfoById(id);
-        if (downloadInfo != null) {
-            long totalSize = downloadInfoService.getDownloadTotalSize(downloadInfo);
-            return ResponseEntity.ok(totalSize);
+            return ResponseEntity.ok(downloadInfo.getResumeOffset());
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(-1L);
     }
