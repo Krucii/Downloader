@@ -10,7 +10,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,11 +18,24 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-@CrossOrigin(origins = "http://localhost:8080")
 @Controller
 @RequestMapping("/downloads")
 public class DownloadController {
+
+    private final DownloadInfoService downloadInfoService;
+    private ExecutorService downloadExecutor = Executors.newCachedThreadPool();
+    private Map<Long, Future<?>> activeDownloads = new ConcurrentHashMap<>();
+
+    @Autowired
+    public DownloadController(DownloadInfoService downloadInfoService) {
+        this.downloadInfoService = downloadInfoService;
+    }
 
     @AllArgsConstructor
     @NoArgsConstructor
@@ -33,109 +45,131 @@ public class DownloadController {
         private String dest;
     }
 
-    private final DownloadInfoService downloadInfoService;
-
-    @Autowired
-    public DownloadController(DownloadInfoService downloadInfoService) {
-        this.downloadInfoService = downloadInfoService;
-    }
-
     @PostMapping("/addFile")
-    public String addFile(@RequestBody DownloadRequest downloadRequest) {
+    public ResponseEntity<String> addFile(@RequestBody DownloadRequest downloadRequest) {
         DownloadInfo downloadInfo = new DownloadInfo(downloadRequest.getUrl(), downloadRequest.getDest(), 0L, false);
         downloadInfoService.saveDownloadInfo(downloadInfo);
-        return "home";
+        //startOrResumeDownload(downloadInfo);
+        return ResponseEntity.ok("Download added and started successfully");
     }
 
     @PostMapping("/{id}/pause")
     public ResponseEntity<String> pauseDownload(@PathVariable Long id) {
-        DownloadInfo downloadInfo = downloadInfoService.getDownloadInfoById(id);
-        if (downloadInfo != null) {
-            downloadInfo.setDownloading(false);
-            downloadInfoService.saveDownloadInfo(downloadInfo);
-            return ResponseEntity.ok("Download paused successfully");
-        }
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Download not found");
+        return pauseDownloadById(id);
     }
 
     @PostMapping("/{id}/resume")
     public ResponseEntity<String> resumeDownload(@PathVariable Long id) {
         DownloadInfo downloadInfo = downloadInfoService.getDownloadInfoById(id);
-        if (downloadInfo != null) {
-            downloadInfo.setDownloading(true);
-            downloadInfoService.saveDownloadInfo(downloadInfo);
-            downloadFile(downloadInfo);
+        if (downloadInfo != null && !downloadInfo.isDownloading()) {
+            startOrResumeDownload(downloadInfo);
             return ResponseEntity.ok("Download resumed successfully");
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Download not found or already downloading");
+    }
+
+    private ResponseEntity<String> pauseDownloadById(Long id) {
+        Future<?> task = activeDownloads.get(id);
+        if (task != null) {
+            task.cancel(true);
+            activeDownloads.remove(id);
+            DownloadInfo downloadInfo = downloadInfoService.getDownloadInfoById(id);
+            if (downloadInfo != null) {
+                downloadInfo.setDownloading(false);
+                downloadInfoService.saveDownloadInfo(downloadInfo);
+                return ResponseEntity.ok("Download paused successfully");
+            }
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Download not found");
     }
 
-    public void downloadFile(DownloadInfo downloadInfo) {
+    private void startOrResumeDownload(DownloadInfo downloadInfo) {
+        downloadInfo.setDownloading(true);
+        downloadInfoService.saveDownloadInfo(downloadInfo);
+        Runnable downloadTask = () -> downloadFile(downloadInfo);
+        Future<?> future = downloadExecutor.submit(downloadTask);
+        activeDownloads.put(downloadInfo.getId(), future);
+    }
+
+    private void downloadFile(DownloadInfo downloadInfo) {
         HttpClient httpClient = HttpClient.newHttpClient();
-        long resumeOffset = downloadInfo.getResumeOffset();
+        HttpRequest httpRequest = buildHttpRequest(downloadInfo);
 
         try {
-            HttpRequest httpRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(downloadInfo.getFileUrl()))
-                    .header("Range", "bytes=" + resumeOffset + "-") // Set the Range header for resuming
-                    .build();
-
             HttpResponse<InputStream> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
-
-            int statusCode = response.statusCode();
-            System.out.println("HTTP Status Code: " + statusCode);
-
-            if (statusCode == 200 || statusCode == 206) {
-                // Continue with reading the InputStream
-                try (InputStream inputStream = response.body();
-                     FileOutputStream outputStream = new FileOutputStream(downloadInfo.getDownloadedFilePath(), true)) {
-
-                    byte[] buffer = new byte[8192];
-                    int bytesRead;
-                    int bytesBuffered = 0;
-
-                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        outputStream.write(buffer, 0, bytesRead);
-                        bytesBuffered += bytesRead;
-
-                        if (bytesBuffered > 1024 * 1024) {// Flush after 1MB
-                            bytesBuffered = 0;
-                            outputStream.flush();
-                            downloadInfoService.saveDownloadInfo(downloadInfo);
-                        }
-
-                        resumeOffset += bytesRead; // Update resumeOffset as data is downloaded
-                        downloadInfo.setResumeOffset(resumeOffset);
-                        if (!downloadInfo.isDownloading()) {
-                            return; // Indicates the download was paused
-                        }
-                    }
-                    downloadInfoService.saveDownloadInfo(downloadInfo);
-                    // Flush any remaining buffered data
-                    outputStream.flush();
-                }
-            } else if (statusCode == 302) {
-                // Handle redirection (similar to previous code)
-                String newLocation = response.headers().firstValue("Location").orElse(null);
-                if (newLocation != null) {
-                    System.out.println("Redirecting to: " + newLocation);
-                    httpRequest = HttpRequest.newBuilder()
-                            .uri(URI.create(newLocation))
-                            .header("Range", "bytes=" + resumeOffset + "-")
-                            .build();
-                } else {
-                    System.out.println("Redirect location not found in headers.");
-                }
-            } else {
-                // Handle other status codes appropriately
-                System.out.println("Unexpected HTTP Status Code: " + statusCode);
-            }
+            processResponse(response, downloadInfo);
         } catch (IOException | InterruptedException e) {
+            Thread.currentThread().interrupt(); // Set the interrupt flag
             e.printStackTrace();
+        } finally {
+            // Ensure the download is marked as not downloading in case of an error or interruption
+            downloadInfo.setDownloading(false);
+            downloadInfoService.saveDownloadInfo(downloadInfo);
         }
     }
 
+    private HttpRequest buildHttpRequest(DownloadInfo downloadInfo) {
+        return HttpRequest.newBuilder()
+                .uri(URI.create(downloadInfo.getFileUrl()))
+                .header("Range", "bytes=" + downloadInfo.getResumeOffset() + "-")
+                .build();
+    }
 
+    private void processResponse(HttpResponse<InputStream> response, DownloadInfo downloadInfo) throws IOException {
+        try (InputStream inputStream = response.body();
+             FileOutputStream outputStream = new FileOutputStream(downloadInfo.getDownloadedFilePath(), true)) {
+            writeToOutputStream(inputStream, outputStream, downloadInfo);
+        }
+    }
+
+    private void writeToOutputStream(InputStream inputStream, FileOutputStream outputStream, DownloadInfo downloadInfo) throws IOException {
+        byte[] buffer = new byte[8192];
+        int bytesRead;
+        long totalBytesRead = 0L;
+        final long updateThreshold = 1024 * 1024; // Update after every 1MB downloaded
+
+        try {
+            while ((bytesRead = inputStream.read(buffer)) != -1 && downloadInfo.isDownloading()) {
+                if (Thread.currentThread().isInterrupted()) {
+                    // Clean up and exit if the thread was interrupted
+                    System.out.println("Download interrupted, cleaning up...");
+                    break; // Exit the loop to proceed to the finally block for cleanup
+                }
+
+                outputStream.write(buffer, 0, bytesRead);
+                totalBytesRead += bytesRead;
+                downloadInfo.setResumeOffset(downloadInfo.getResumeOffset() + bytesRead);
+
+                if (totalBytesRead >= updateThreshold) {
+                    totalBytesRead = 0L;
+                    downloadInfoService.saveDownloadInfo(downloadInfo); // Update download progress
+                }
+            }
+        } finally {
+            // Cleanup code to be executed regardless of interruption
+            try {
+                if (outputStream != null) {
+                    outputStream.close(); // Close the FileOutputStream
+                }
+            } catch (IOException e) {
+                e.printStackTrace(); // Handle the exception as needed
+            }
+
+            try {
+                if (inputStream != null) {
+                    inputStream.close(); // Close the InputStream
+                }
+            } catch (IOException e) {
+                e.printStackTrace(); // Handle the exception as needed
+            }
+
+            // Update the download info to reflect the interrupted state
+            downloadInfo.setDownloading(false);
+            downloadInfoService.saveDownloadInfo(downloadInfo);
+
+            // Additional cleanup actions can be performed here as needed
+        }
+    }
 
     @GetMapping
     @ResponseBody
