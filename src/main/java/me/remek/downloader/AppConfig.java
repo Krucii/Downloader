@@ -1,4 +1,4 @@
-package me.remigiuszkatrynski.downloader;
+package me.remek.downloader;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

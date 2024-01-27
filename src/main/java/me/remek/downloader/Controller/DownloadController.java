@@ -1,10 +1,10 @@
-package me.remigiuszkatrynski.downloader.Controller;
+package me.remek.downloader.Controller;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import me.remigiuszkatrynski.downloader.Model.DownloadInfo;
-import me.remigiuszkatrynski.downloader.Service.DownloadInfoService;
+import me.remek.downloader.Model.DownloadInfo;
+import me.remek.downloader.Service.DownloadInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -153,18 +153,3 @@ public class DownloadController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(-1L);
     }
 }
-
-
-/*
-function pauseDownloads() {
-    $.get("/pause", function(data) {
-        console.log(data); // Log response from the server
-    });
-}
-
-function resumeDownloads() {
-    $.get("/resume", function(data) {
-        console.log(data); // Log response from the server
-    });
-}
- */

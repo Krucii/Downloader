@@ -1,4 +1,4 @@
-package me.remigiuszkatrynski.downloader;
+package me.remek.downloader;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

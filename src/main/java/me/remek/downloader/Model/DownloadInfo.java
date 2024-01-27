@@ -1,4 +1,4 @@
-package me.remigiuszkatrynski.downloader.Model;
+package me.remek.downloader.Model;
 
 import jakarta.persistence.*;
 import lombok.Data;

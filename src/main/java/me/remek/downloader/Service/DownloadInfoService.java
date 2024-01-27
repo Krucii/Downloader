@@ -1,7 +1,7 @@
-package me.remigiuszkatrynski.downloader.Service;
+package me.remek.downloader.Service;
 
-import me.remigiuszkatrynski.downloader.Model.DownloadInfo;
-import me.remigiuszkatrynski.downloader.Repository.DownloadInfoRepository;
+import me.remek.downloader.Model.DownloadInfo;
+import me.remek.downloader.Repository.DownloadInfoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

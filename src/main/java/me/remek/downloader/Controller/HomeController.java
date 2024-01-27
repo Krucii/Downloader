@@ -1,8 +1,8 @@
-package me.remigiuszkatrynski.downloader.Controller;
+package me.remek.downloader.Controller;
 
 import lombok.RequiredArgsConstructor;
-import me.remigiuszkatrynski.downloader.Model.DownloadInfo;
-import me.remigiuszkatrynski.downloader.Service.DownloadInfoService;
+import me.remek.downloader.Model.DownloadInfo;
+import me.remek.downloader.Service.DownloadInfoService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
