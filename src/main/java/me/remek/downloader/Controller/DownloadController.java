@@ -99,8 +99,13 @@ public class DownloadController {
             HttpResponse<InputStream> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
             processResponse(response, downloadInfo);
         } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt(); // Set the interrupt flag
-            e.printStackTrace();
+            if (e instanceof IOException && e.getCause() instanceof InterruptedException) {
+                // Handle the InterruptedException cause
+                System.out.println("Download was interrupted");
+                Thread.currentThread().interrupt(); // Optionally re-interrupt the thread
+            } else {
+                e.printStackTrace();
+            }
         } finally {
             // Ensure the download is marked as not downloading in case of an error or interruption
             downloadInfo.setDownloading(false);
@@ -122,7 +127,7 @@ public class DownloadController {
         }
     }
 
-    private void writeToOutputStream(InputStream inputStream, FileOutputStream outputStream, DownloadInfo downloadInfo) throws IOException {
+    private void writeToOutputStream(InputStream inputStream, FileOutputStream outputStream, DownloadInfo downloadInfo) {
         byte[] buffer = new byte[8192];
         int bytesRead;
         long totalBytesRead = 0L;
@@ -130,20 +135,21 @@ public class DownloadController {
 
         try {
             while ((bytesRead = inputStream.read(buffer)) != -1 && downloadInfo.isDownloading()) {
-                if (Thread.currentThread().isInterrupted()) {
-                    // Clean up and exit if the thread was interrupted
-                    System.out.println("Download interrupted, cleaning up...");
-                    break; // Exit the loop to proceed to the finally block for cleanup
-                }
-
                 outputStream.write(buffer, 0, bytesRead);
                 totalBytesRead += bytesRead;
                 downloadInfo.setResumeOffset(downloadInfo.getResumeOffset() + bytesRead);
 
                 if (totalBytesRead >= updateThreshold) {
                     totalBytesRead = 0L;
-                    downloadInfoService.saveDownloadInfo(downloadInfo); // Update download progress
+                    downloadInfoService.saveDownloadInfo(downloadInfo);
                 }
+            }
+        } catch (IOException e) {
+            if (e.getCause() instanceof InterruptedException) {
+                System.out.println("Download was interrupted during writeToOutputStream");
+                Thread.currentThread().interrupt(); // Optionally re-interrupt the thread
+            } else {
+                e.printStackTrace();
             }
         } finally {
             // Cleanup code to be executed regardless of interruption
@@ -166,8 +172,6 @@ public class DownloadController {
             // Update the download info to reflect the interrupted state
             downloadInfo.setDownloading(false);
             downloadInfoService.saveDownloadInfo(downloadInfo);
-
-            // Additional cleanup actions can be performed here as needed
         }
     }
 
