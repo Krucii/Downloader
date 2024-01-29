@@ -17,6 +17,10 @@ public class DownloadInfo {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private Users owner;
+
     @Column(name = "file_url")
     private String fileUrl;
 
@@ -39,7 +43,8 @@ public class DownloadInfo {
         this.resumeOffset = 0;
     }
 
-    public DownloadInfo(String fileUrl, String downloadedFilePath, long resumeOffset, boolean isDownloading) {
+    public DownloadInfo(Users owner, String fileUrl, String downloadedFilePath, long resumeOffset, boolean isDownloading) {
+        this.owner = owner;
         this.fileUrl = fileUrl;
         this.downloadedFilePath = downloadedFilePath;
         this.resumeOffset = resumeOffset;

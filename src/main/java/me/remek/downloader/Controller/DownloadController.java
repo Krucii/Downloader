@@ -4,10 +4,14 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import me.remek.downloader.Model.DownloadInfo;
+import me.remek.downloader.Model.Users;
 import me.remek.downloader.Service.DownloadInfoService;
+import me.remek.downloader.Service.UsersService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import java.io.FileOutputStream;
@@ -29,12 +33,14 @@ import java.util.concurrent.Future;
 public class DownloadController {
 
     private final DownloadInfoService downloadInfoService;
+    private final UsersService usersService;
     private ExecutorService downloadExecutor = Executors.newCachedThreadPool();
     private Map<Long, Future<?>> activeDownloads = new ConcurrentHashMap<>();
 
     @Autowired
-    public DownloadController(DownloadInfoService downloadInfoService) {
+    public DownloadController(DownloadInfoService downloadInfoService, UsersService usersService) {
         this.downloadInfoService = downloadInfoService;
+        this.usersService = usersService;
     }
 
     @AllArgsConstructor
@@ -47,7 +53,8 @@ public class DownloadController {
 
     @PostMapping("/addFile")
     public ResponseEntity<String> addFile(@RequestBody DownloadRequest downloadRequest) {
-        DownloadInfo downloadInfo = new DownloadInfo(downloadRequest.getUrl(), downloadRequest.getDest(), 0L, false);
+        Users u = usersService.getLoggedUser();
+        DownloadInfo downloadInfo = new DownloadInfo(u, downloadRequest.getUrl(), downloadRequest.getDest(), 0L, false);
         downloadInfoService.saveDownloadInfo(downloadInfo);
         //startOrResumeDownload(downloadInfo);
         return ResponseEntity.ok("Download added and started successfully");
@@ -189,5 +196,11 @@ public class DownloadController {
             return ResponseEntity.ok(downloadInfo.getResumeOffset());
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(-1L);
+    }
+
+    @DeleteMapping("/{id}/clear")
+    public ResponseEntity<String> clearDownload(@PathVariable Long id) {
+        downloadInfoService.deleteDownloadInfo(id);
+        return ResponseEntity.ok("ok");
     }
 }
