@@ -17,7 +17,7 @@
                     <button class="nav-link btn btn-primary" data-bs-target="#addFileModal" data-bs-toggle="modal" id="openModalButton" type="button">Add</button>
                 </li>
                 <li class="nav-item">
-                    <button class="nav-link btn btn-success" data-bs-target="#statsModal" data-bs-toggle="modal" id="openStatsButton" type="button">Stats</button>
+                    <button class="nav-link btn btn-success" data-bs-target="#statsModal" data-bs-toggle="modal" id="openStatsButton" onclick="getStats()" type="button">Stats</button>
                 </li>
             </ul>
             <ul class="navbar-nav ms-auto">
@@ -59,8 +59,8 @@
             </div>
             <div class="modal-body">
                 <div class="stats-info">
-                    <p>Downloads completed: <span th:text="${stats.getDownloadsCompleted()}"></span></p>
-                    <p>Downloaded gigabytes: <span th:text="${stats.getDownloadedGigabytes()}"></span></p>
+                    <p>Downloads completed: <span id="dlCompleted" th:text="${stats.getDownloadsCompleted()}"></span></p>
+                    <p>Downloaded gigabytes: <span id="gbDownloaded" th:text="${stats.getDownloadedGigabytes()}"></span></p>
                 </div>
             </div>
             <div class="modal-footer">
@@ -78,7 +78,7 @@
         <tr>
             <th class="w-25" scope="col">File name</th>
             <th class="w-25" scope="col">Downloaded</th>
-            <th class="w-50" scope="progress">Progress</th>
+            <th class="w-50" scope="col">Progress</th>
             <th class="w-25" scope="col">Actions</th>
         </tr>
         </thead>
@@ -136,6 +136,23 @@
             success: function(response) {
                 console.log(response)
                 location.reload()
+            },
+            error: function(xhr) {
+                console.error(xhr.responseText);
+            }
+        });
+    }
+
+    function getStats() {
+        $.ajax({
+            type: 'GET',
+            url: '/downloads/stats',
+            beforeSend: function(request) {
+                request.setRequestHeader(header, token);
+            },
+            success: function(response) {
+                $('#dlCompleted').text(response.downloadsCompleted)
+                $('#gbDownloaded').text(response.downloadedGigabytes)
             },
             error: function(xhr) {
                 console.error(xhr.responseText);

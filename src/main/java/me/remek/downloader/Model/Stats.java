@@ -1,5 +1,6 @@
 package me.remek.downloader.Model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -16,7 +17,8 @@ public class Stats {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "stats", optional = false)
+    @JsonIgnore
     private Users owner;
 
     private Double downloadedGigabytes = 0D;

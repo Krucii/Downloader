@@ -1,5 +1,6 @@
 package me.remek.downloader.Controller;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -60,7 +61,7 @@ public class DownloadController {
 
     @PostMapping("/addFile")
     public ResponseEntity<String> addFile(@RequestBody DownloadRequest downloadRequest) {
-        u = usersService.getLoggedUser();// ?
+        u = usersService.getLoggedUser();
         DownloadInfo downloadInfo = new DownloadInfo(u, downloadRequest.getUrl(), downloadRequest.getDest(), 0L, false);
         downloadInfoService.saveDownloadInfo(downloadInfo);
         //startOrResumeDownload(downloadInfo);
@@ -69,12 +70,23 @@ public class DownloadController {
 
     @PostMapping("/{id}/pause")
     public ResponseEntity<String> pauseDownload(@PathVariable Long id) {
+        u = usersService.getLoggedUser();
+        DownloadInfo downloadInfo = downloadInfoService.getDownloadInfoById(id);
+
+        if (downloadInfo.getOwner() != u) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Forbidden");
+        }
+
         return pauseDownloadById(id);
     }
 
     @PostMapping("/{id}/resume")
     public ResponseEntity<String> resumeDownload(@PathVariable Long id) {
+        u = usersService.getLoggedUser();
         DownloadInfo downloadInfo = downloadInfoService.getDownloadInfoById(id);
+        if (downloadInfo.getOwner() != u) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Forbidden");
+        }
         if (downloadInfo != null && !downloadInfo.getIsDownloading()) {
             startOrResumeDownload(downloadInfo);
             return ResponseEntity.ok("Download resumed successfully");
@@ -204,13 +216,20 @@ public class DownloadController {
     @GetMapping
     @ResponseBody
     public ResponseEntity<List<DownloadInfo>> getAllDownloads() {
+        u = usersService.getLoggedUser();
         List<DownloadInfo> downloadInfos = downloadInfoService.getAllDownloadInfo();
         return ResponseEntity.ok(downloadInfos);
     }
 
     @GetMapping("/{id}/progress")
     public ResponseEntity<Long> getDownloadProgress(@PathVariable Long id) {
+        u = usersService.getLoggedUser();
         DownloadInfo downloadInfo = downloadInfoService.getDownloadInfoById(id);
+
+        if (downloadInfo.getOwner() != u) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(-1L);
+        }
+
         if (downloadInfo != null) {
             return ResponseEntity.ok(downloadInfo.getResumeOffset());
         }
@@ -219,7 +238,20 @@ public class DownloadController {
 
     @DeleteMapping("/{id}/clear")
     public ResponseEntity<String> clearDownload(@PathVariable Long id) {
+        u = usersService.getLoggedUser();
+        DownloadInfo downloadInfo = downloadInfoService.getDownloadInfoById(id);
+
+        if (downloadInfo.getOwner() != u) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Forbidden");
+        }
+
         downloadInfoService.deleteDownloadInfo(id);
         return ResponseEntity.ok("ok");
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<Stats> getStats() {
+        u = usersService.getLoggedUser();
+        return ResponseEntity.ok(statsService.findAll(u));
     }
 }

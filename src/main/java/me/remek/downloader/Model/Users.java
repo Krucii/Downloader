@@ -16,8 +16,8 @@ import java.util.Set;
 public class Users {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "user_id")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
     private Long id;
 
     @OneToMany
@@ -31,6 +31,7 @@ public class Users {
     private Boolean isAdmin;
 
     @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "stats_id", referencedColumnName = "id")
     private Stats stats;
 
     public Users() {

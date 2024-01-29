@@ -24,22 +24,22 @@ public class UserPreload {
     CommandLineRunner loadBasicUser() {
         return args -> {
             BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(10);
-            Users u = new Users(1L, null, "admin", encoder.encode("admin"), true, null);
-            Users u2 = new Users(2L, null, "user", encoder.encode("user"), false, null);
+            Users u = new Users(1L, null, "admin", encoder.encode("admin"), true, new Stats());
+            Users u2 = new Users(2L, null, "user", encoder.encode("user"), false, new Stats());
 
             usersRepository.save(u);
             usersRepository.save(u2);
 
-            Stats s = new Stats(1L, u,0D, 0);
-            Stats s2 = new Stats(2L, u2,0D, 0);
-
-            statsRepository.save(s);
-            statsRepository.save(s2);
-
-            u.setStats(s);
-            u2.setStats(s2);
-            usersRepository.save(u);
-            usersRepository.save(u2);
+//            Stats s = new Stats(u);
+//            Stats s2 = new Stats(u2);
+//
+//            statsRepository.save(s);
+//            statsRepository.save(s2);
+//
+//            u.setStats(s);
+//            u2.setStats(s2);
+//            usersRepository.save(u);
+//            usersRepository.save(u2);
         };
     }
 }
