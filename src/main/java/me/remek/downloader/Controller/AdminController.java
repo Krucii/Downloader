@@ -1,5 +1,6 @@
 package me.remek.downloader.Controller;
 
+import me.remek.downloader.Model.Stats;
 import me.remek.downloader.Model.Users;
 import me.remek.downloader.Service.UsersService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,7 @@ public class AdminController {
     @PostMapping("/add")
     public String addUser(@ModelAttribute Users newUser) {
         if (usersService.getLoggedUser().getIsAdmin()) {
+            newUser.setIsAdmin(false);
             BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(10);
             newUser.setPassword(encoder.encode(newUser.getPassword()));
             usersService.save(newUser);

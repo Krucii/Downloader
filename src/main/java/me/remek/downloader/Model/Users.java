@@ -13,7 +13,6 @@ import java.util.Set;
 @Getter
 @Setter
 @AllArgsConstructor
-@NoArgsConstructor
 public class Users {
 
     @Id
@@ -30,4 +29,12 @@ public class Users {
     private String password;
 
     private Boolean isAdmin;
+
+    @OneToOne(cascade = CascadeType.ALL)
+    private Stats stats;
+
+    public Users() {
+        userDownloads = null;
+        stats = new Stats(this);
+    }
 }

@@ -28,19 +28,19 @@ public class DownloadInfo {
     private String downloadedFilePath;
 
     @Column(name = "resume_offset")
-    private long resumeOffset;
+    private Long resumeOffset;
 
     @Column(name = "total_size")
-    private long totalSize;
+    private Long totalSize;
 
     @Column(name = "is_downloading")
-    private boolean isDownloading;
+    private Boolean isDownloading;
 
     @Column(name = "download_completed")
-    private boolean downloadCompleted;
+    private Boolean downloadCompleted; // not used?
 
     public DownloadInfo() {
-        this.resumeOffset = 0;
+        this.resumeOffset = 0L;
     }
 
     public DownloadInfo(Users owner, String fileUrl, String downloadedFilePath, long resumeOffset, boolean isDownloading) {

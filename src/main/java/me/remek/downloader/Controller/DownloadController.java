@@ -4,8 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import me.remek.downloader.Model.DownloadInfo;
+import me.remek.downloader.Model.Stats;
 import me.remek.downloader.Model.Users;
 import me.remek.downloader.Service.DownloadInfoService;
+import me.remek.downloader.Service.StatsService;
 import me.remek.downloader.Service.UsersService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -34,13 +36,16 @@ public class DownloadController {
 
     private final DownloadInfoService downloadInfoService;
     private final UsersService usersService;
+
+    private final StatsService statsService;
     private ExecutorService downloadExecutor = Executors.newCachedThreadPool();
     private Map<Long, Future<?>> activeDownloads = new ConcurrentHashMap<>();
 
     @Autowired
-    public DownloadController(DownloadInfoService downloadInfoService, UsersService usersService) {
+    public DownloadController(DownloadInfoService downloadInfoService, UsersService usersService, StatsService statsService) {
         this.downloadInfoService = downloadInfoService;
         this.usersService = usersService;
+        this.statsService = statsService;
     }
 
     @AllArgsConstructor
@@ -68,7 +73,7 @@ public class DownloadController {
     @PostMapping("/{id}/resume")
     public ResponseEntity<String> resumeDownload(@PathVariable Long id) {
         DownloadInfo downloadInfo = downloadInfoService.getDownloadInfoById(id);
-        if (downloadInfo != null && !downloadInfo.isDownloading()) {
+        if (downloadInfo != null && !downloadInfo.getIsDownloading()) {
             startOrResumeDownload(downloadInfo);
             return ResponseEntity.ok("Download resumed successfully");
         }
@@ -82,7 +87,7 @@ public class DownloadController {
             activeDownloads.remove(id);
             DownloadInfo downloadInfo = downloadInfoService.getDownloadInfoById(id);
             if (downloadInfo != null) {
-                downloadInfo.setDownloading(false);
+                downloadInfo.setIsDownloading(false);
                 downloadInfoService.saveDownloadInfo(downloadInfo);
                 return ResponseEntity.ok("Download paused successfully");
             }
@@ -91,7 +96,7 @@ public class DownloadController {
     }
 
     private void startOrResumeDownload(DownloadInfo downloadInfo) {
-        downloadInfo.setDownloading(true);
+        downloadInfo.setIsDownloading(true);
         downloadInfoService.saveDownloadInfo(downloadInfo);
         Runnable downloadTask = () -> downloadFile(downloadInfo);
         Future<?> future = downloadExecutor.submit(downloadTask);
@@ -115,7 +120,7 @@ public class DownloadController {
             }
         } finally {
             // Ensure the download is marked as not downloading in case of an error or interruption
-            downloadInfo.setDownloading(false);
+            downloadInfo.setIsDownloading(false);
             downloadInfoService.saveDownloadInfo(downloadInfo);
         }
     }
@@ -136,12 +141,12 @@ public class DownloadController {
 
     private void writeToOutputStream(InputStream inputStream, FileOutputStream outputStream, DownloadInfo downloadInfo) {
         byte[] buffer = new byte[8192];
-        int bytesRead;
+        int bytesRead = 0;
         long totalBytesRead = 0L;
         final long updateThreshold = 1024 * 1024; // Update after every 1MB downloaded
 
         try {
-            while ((bytesRead = inputStream.read(buffer)) != -1 && downloadInfo.isDownloading()) {
+            while ((bytesRead = inputStream.read(buffer)) != -1 && downloadInfo.getIsDownloading()) {
                 outputStream.write(buffer, 0, bytesRead);
                 totalBytesRead += bytesRead;
                 downloadInfo.setResumeOffset(downloadInfo.getResumeOffset() + bytesRead);
@@ -154,11 +159,23 @@ public class DownloadController {
         } catch (IOException e) {
             if (e.getCause() instanceof InterruptedException) {
                 System.out.println("Download was interrupted during writeToOutputStream");
-                Thread.currentThread().interrupt(); // Optionally re-interrupt the thread
+
+                Thread.currentThread().interrupt();
             } else {
                 e.printStackTrace();
             }
         } finally {
+
+            if (bytesRead == -1) {
+                Stats s = statsService.findAll(); // nie moze znalezc kto jest zalogowany
+                int downloadedFiles = s.getDownloadsCompleted()+1;
+                double downloadedGB = s.getDownloadedGigabytes()+((double) downloadInfo.getTotalSize() / (double) (1024 * 1024 * 1024));
+
+                s.setDownloadsCompleted(downloadedFiles);
+                s.setDownloadedGigabytes(downloadedGB);
+                statsService.save(s);
+            }
+
             // Cleanup code to be executed regardless of interruption
             try {
                 if (outputStream != null) {
@@ -177,7 +194,7 @@ public class DownloadController {
             }
 
             // Update the download info to reflect the interrupted state
-            downloadInfo.setDownloading(false);
+            downloadInfo.setIsDownloading(false);
             downloadInfoService.saveDownloadInfo(downloadInfo);
         }
     }

@@ -17,7 +17,7 @@
                     <button class="nav-link btn btn-primary" data-bs-target="#addFileModal" data-bs-toggle="modal" id="openModalButton" type="button">Add</button>
                 </li>
                 <li class="nav-item">
-                    <button class="nav-link btn btn-success" type="button">Stats</button>
+                    <button class="nav-link btn btn-success" data-bs-target="#statsModal" data-bs-toggle="modal" id="openStatsButton" type="button">Stats</button>
                 </li>
             </ul>
             <ul class="navbar-nav ms-auto">
@@ -50,6 +50,28 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="statsModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel2">Statistics</h5>
+            </div>
+            <div class="modal-body">
+                <div class="stats-info">
+                    <p>Downloads completed: <span th:text="${stats.getDownloadsCompleted()}"></span></p>
+                    <p>Downloaded gigabytes: <span th:text="${stats.getDownloadedGigabytes()}"></span></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
 <div id="downloadsTableContainer">
     <table class="table">
         <thead>
@@ -75,8 +97,8 @@
             </td>
             <td class="align-middle d-flex">
                 <button class="btn btn-primary toggle-download-btn mx-2" th:id="'toggleDownloadBtn_' + ${downloadItem.id}"
-                        th:onclick="'toggleDownload(\'' + ${downloadItem.id} + '\',\'' + ${downloadItem.downloading} + '\')'">
-                    <span th:text="${downloadItem.downloading} ? 'Pause' : 'Resume'"></span>
+                        th:onclick="'toggleDownload(\'' + ${downloadItem.id} + '\',\'' + ${downloadItem.isDownloading} + '\')'">
+                    <span th:text="${downloadItem.isDownloading} ? 'Pause' : 'Resume'"></span>
                 </button>
 
                 <button class="btn btn-secondary clear-btn" th:id="'clearBtn_' + ${downloadItem.id}"

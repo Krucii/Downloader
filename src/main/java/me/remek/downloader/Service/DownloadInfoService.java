@@ -30,9 +30,6 @@ public class DownloadInfoService {
     public List<DownloadInfo> getAllDownloadInfo() {
 
         Users u = usersService.getLoggedUser();
-
-        downloadInfoRepository.findAll(u).forEach(x -> System.out.println(x.getFileUrl()));;
-
         return downloadInfoRepository.findAll(u);
     }
 
