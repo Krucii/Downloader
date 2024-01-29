@@ -41,6 +41,8 @@ public class DownloadController {
     private ExecutorService downloadExecutor = Executors.newCachedThreadPool();
     private Map<Long, Future<?>> activeDownloads = new ConcurrentHashMap<>();
 
+    Users u;
+
     @Autowired
     public DownloadController(DownloadInfoService downloadInfoService, UsersService usersService, StatsService statsService) {
         this.downloadInfoService = downloadInfoService;
@@ -58,7 +60,7 @@ public class DownloadController {
 
     @PostMapping("/addFile")
     public ResponseEntity<String> addFile(@RequestBody DownloadRequest downloadRequest) {
-        Users u = usersService.getLoggedUser();
+        u = usersService.getLoggedUser();// ?
         DownloadInfo downloadInfo = new DownloadInfo(u, downloadRequest.getUrl(), downloadRequest.getDest(), 0L, false);
         downloadInfoService.saveDownloadInfo(downloadInfo);
         //startOrResumeDownload(downloadInfo);
@@ -167,9 +169,9 @@ public class DownloadController {
         } finally {
 
             if (bytesRead == -1) {
-                Stats s = statsService.findAll(); // nie moze znalezc kto jest zalogowany
+                Stats s = statsService.findAll(u);
                 int downloadedFiles = s.getDownloadsCompleted()+1;
-                double downloadedGB = s.getDownloadedGigabytes()+((double) downloadInfo.getTotalSize() / (double) (1024 * 1024 * 1024));
+                double downloadedGB = (s.getDownloadedGigabytes()+((double) downloadInfo.getTotalSize() / (double) (1024 * 1024 * 1024)));
 
                 s.setDownloadsCompleted(downloadedFiles);
                 s.setDownloadedGigabytes(downloadedGB);

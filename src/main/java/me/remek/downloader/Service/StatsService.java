@@ -18,8 +18,7 @@ public class StatsService {
 
     private final UsersService usersService;
 
-    public Stats findAll() {
-        Users u = usersService.getLoggedUser(); // tu nie moze znalezc kto zalogowany
+    public Stats findAll(Users u) {
         return statsRepository.findAll(u);
     }
 

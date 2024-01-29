@@ -40,8 +40,8 @@
                 <button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
             </div>
             <div class="modal-body">
-                <input class="form-control mb-2" id="fileNameInput" placeholder="Enter file name" type="text">
-                <input class="form-control" id="destinationInput" placeholder="Enter destination" type="text">
+                <label for="fileNameInput"></label><input class="form-control mb-2" id="fileNameInput" placeholder="Enter url" required type="text">
+                <label for="destinationInput"></label><input class="form-control" id="destinationInput" placeholder="Enter destination" required type="text">
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
@@ -84,7 +84,7 @@
         </thead>
         <tbody>
         <tr th:each="downloadItem : ${downloadList}">
-            <td class="align-middle" th:text="${downloadItem.downloadedFilePath}"></td>
+            <td class="align-middle" th:text="${#strings.arraySplit(downloadItem.downloadedFilePath, '/')[#strings.arraySplit(downloadItem.downloadedFilePath, '/').length - 1]}"></td>
             <td class="align-middle resume-offset" th:data-download-id="${downloadItem.id}"
                 th:text="${downloadItem.resumeOffset} + '/' + ${downloadItem.totalSize}"></td>
             <td class="align-middle">
@@ -204,7 +204,6 @@
                     if (data === Number(totalSize)) {
                         div.html('Completed (' + totalSize + ' bytes)');
                         stopUpdating[downloadId] = true;
-
                         button.html("Completed");
                         button.attr("disabled", true);
                     } else {

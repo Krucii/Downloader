@@ -27,7 +27,9 @@ public class HomeController {
 
         Boolean isAdmin = usersService.getLoggedUser().getIsAdmin();
 
-        Stats s = statsService.findAll();
+        Users u = usersService.getLoggedUser();
+
+        Stats s = statsService.findAll(u);
 
         model.addAttribute("stats", s);
         model.addAttribute("downloadList", downloadList);

@@ -25,7 +25,7 @@ public class AdminController {
             return "admin";
         }
         else {
-            return "home";
+            return "redirect:/home";
         }
     }
 
@@ -39,7 +39,7 @@ public class AdminController {
             return "redirect:/admin";
         }
         else {
-            return "home";
+            return "redirect:/home";
         }
     }
 
@@ -50,7 +50,7 @@ public class AdminController {
             return "redirect:/admin";
         }
         else {
-            return "home";
+            return "redirect:/home";
         }
     }
 
