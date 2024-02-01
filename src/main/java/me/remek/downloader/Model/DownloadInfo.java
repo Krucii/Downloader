@@ -37,7 +37,7 @@ public class DownloadInfo {
     private Boolean isDownloading;
 
     @Column(name = "download_completed")
-    private Boolean downloadCompleted; // not used?
+    private Boolean downloadCompleted;
 
     public DownloadInfo() {
         this.resumeOffset = 0L;

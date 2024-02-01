@@ -29,17 +29,6 @@ public class UserPreload {
 
             usersRepository.save(u);
             usersRepository.save(u2);
-
-//            Stats s = new Stats(u);
-//            Stats s2 = new Stats(u2);
-//
-//            statsRepository.save(s);
-//            statsRepository.save(s2);
-//
-//            u.setStats(s);
-//            u2.setStats(s2);
-//            usersRepository.save(u);
-//            usersRepository.save(u2);
         };
     }
 }

@@ -126,14 +126,11 @@ public class DownloadController {
             processResponse(response, downloadInfo);
         } catch (IOException | InterruptedException e) {
             if (e instanceof IOException && e.getCause() instanceof InterruptedException) {
-                // Handle the InterruptedException cause
-                System.out.println("Download was interrupted");
-                Thread.currentThread().interrupt(); // Optionally re-interrupt the thread
+                Thread.currentThread().interrupt();
             } else {
                 e.printStackTrace();
             }
         } finally {
-            // Ensure the download is marked as not downloading in case of an error or interruption
             downloadInfo.setIsDownloading(false);
             downloadInfoService.saveDownloadInfo(downloadInfo);
         }
@@ -190,24 +187,13 @@ public class DownloadController {
                 statsService.save(s);
             }
 
-            // Cleanup code to be executed regardless of interruption
             try {
-                if (outputStream != null) {
-                    outputStream.close(); // Close the FileOutputStream
-                }
+                    outputStream.close();
+                    inputStream.close();
             } catch (IOException e) {
-                e.printStackTrace(); // Handle the exception as needed
+                e.printStackTrace();
             }
 
-            try {
-                if (inputStream != null) {
-                    inputStream.close(); // Close the InputStream
-                }
-            } catch (IOException e) {
-                e.printStackTrace(); // Handle the exception as needed
-            }
-
-            // Update the download info to reflect the interrupted state
             downloadInfo.setIsDownloading(false);
             downloadInfoService.saveDownloadInfo(downloadInfo);
         }
